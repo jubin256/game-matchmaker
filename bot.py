@@ -51,10 +51,14 @@ async def Show(ctx, gamename):
         await ctx.send(f'No Existing matchmaking request for game: {gamename}. Create new request using command - !LFG <game-name> <no-of-players>')
 
 @client.command()
-async def Join(ctx,match_id):
-    print(f"Get member id and update to player list for Group ID {match_id}")
+async def Join(ctx,match_id):    
     global matches
     match_id = int(match_id)
+    if match_id not in matches:
+        await ctx.send(f'Match ID - {match_id} Not Found!')
+        return
+    else:
+        print(f"Get member id and update to player list for Group ID {match_id}")
     players = matches[match_id].players
     gamename = matches[match_id].gamename
     numplayers = int(matches[match_id].numplayers)
@@ -80,8 +84,29 @@ async def Leave(ctx,match_id):
     await ctx.send(f'Player <member-name> removed from GroupID {match_id} , Looking for <n-1> more player(s)')
 
 @client.command()
-async def Purge(ctx, amount = 10):
+async def Purge(ctx, amount = 100):
     await ctx.channel.purge(limit=amount)
 
+@client.command()
+async def Help(ctx,*, command_name):
+    await ctx.send(f'Welcome to Help Section')
+    if command_name == 'LFG':
+        await ctx.send(f'Usage: !LFG <gamename> <no.of.players>')
+        await ctx.send(f'Purpose: Creates a New matchmaking request for a given game and required no. of players. Generates a unique match_id')
+    elif command_name == 'Show':
+        await ctx.send(f'Usage: !Show <gamename>')
+        await ctx.send(f'Purpose: Displays all active matchmaking requests for a particular game')
+    elif command_name == 'Join':
+        await ctx.send(f'Usage: !Join <match_id>')
+        await ctx.send(f'Purpose: Player can join matchmaking queue on mentioning the unique match_id')
+    else:
+        await ctx.send(f'Please choose one of the available commands.\nList of Available commands - "LFG","Show","Join"')
+
+@client.event
+async def on_command_error(ctx,error):
+    if isinstance(error,commands.CommandNotFound):
+        await ctx.send(f'Oops! Command Not Found.\nPlease refer Help Section using command - !Help <command-name> to get detailed help for a certain command.\nList of Available commands - "LFG","Show","Join"')
+    else:
+        print(error)
 
 client.run('NzUwMTg4MzU2MDc1NTIwMDYx.X025WQ.CB3g036hYTMjWYVhkEOrpue6e6c')
