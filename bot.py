@@ -50,6 +50,21 @@ async def Hello(ctx):
     await ctx.send(f' Hello World')
 
 @client.command()
+async def Help(ctx,*, command_name):
+    await ctx.send(f'Help')
+    if command_name == 'LFG':
+        await ctx.send(f'Usage: !LFG <gamename> <no.of.players>')
+        await ctx.send(f'Purpose: Creates a New matchmaking request for a given game and required no. of players. Generates a unique match_id')
+    elif command_name == 'Show':
+        await ctx.send(f'Usage: !Show <gamename>')
+        await ctx.send(f'Purpose: Displays all active matchmaking requests for a particular game')
+    elif command_name == 'Join':
+        await ctx.send(f'Usage: !Join <match_id>')
+        await ctx.send(f'Purpose: Player can join matchmaking queue on mentioning the unique match_id')
+    else:
+        await ctx.send(f'Please choose one of the available commands.\nList of Available commands - "LFG","Show","Join"')
+
+@client.command()
 # ctx is followed by parameters that are passed by user.
 # For eg - !LFG AOE playername 4
 async def LFG(ctx, gamename, player, numplayers):
@@ -72,7 +87,6 @@ async def LFG(ctx, gamename, player, numplayers):
 async def Join(ctx, id, player):
     print("Adding player {player} to match ({id})")
     await ctx.send(f'Player <member-name> added to GroupID {id} , Looking for <n-1> more player(s)')
-
 
 @client.command()
 async def Leave(ctx,id):
