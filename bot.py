@@ -72,4 +72,4 @@ async def Leave(ctx,id):
     await ctx.send(f'Player <member-name> removed from GroupID {id} , Looking for <n-1> more player(s)')
 
 
-client.run('<insert token here>')
+client.run('<Insert Token here>')
