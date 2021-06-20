@@ -2,13 +2,21 @@
 import discord
 from discord.ext import commands
 
-# Importing other libraries
 import random
 import string
+import sys
+import os
+
+if __name__ == "__main__":
+    try:
+        auth_token = sys.argv[1]
+    except IndexError:
+        print("Usage: " + os.path.basename(__file__) + " <Auth Token>")
+        sys.exit(1)
 
 # Prefix for command that are given to your discord bot
 client = commands.Bot(command_prefix = '!')
-print ("Assigning initial variables")
+print ("Assigning initial variables...")
 gamename_to_matches = {}
 
 class Match:
@@ -71,5 +79,5 @@ async def Leave(ctx,id):
     print("Get member id and update to player list for Group ID {id}")
     await ctx.send(f'Player <member-name> removed from GroupID {id} , Looking for <n-1> more player(s)')
 
-
-client.run('<Insert Token here>')
+print(f'Using auth token:"{auth_token}" to connect...')
+client.run(auth_token)
