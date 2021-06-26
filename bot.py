@@ -17,13 +17,14 @@ if __name__ == "__main__":
 # Prefix for command that are given to your discord bot
 client = commands.Bot(command_prefix = '!')
 print ("Assigning initial variables...")
-gamename_to_matches = {}
+gamename_to_match_ids = {}
+match_ids_to_matches = {}
 
 class Match:
   def __init__(self, gamename, id, player, numplayers):
     self.gamename = gamename
     self.id = id
-    self.players = [player]
+    self.players = {player}
     self.numplayers = numplayers
 
 #Sample user-defined function to call from event/command based functions
@@ -33,8 +34,6 @@ def hello_world():
 # Event based function - which tells when bot is online
 @client.event
 async def on_ready():
-    # current_match_id = current_match_id
-    # gamename_to_matches = gamename_to_matches
     print("Bot is available.")
 
 # Defining functions that perform certain action for a command
@@ -68,26 +67,57 @@ async def Help(ctx,*, command_name):
 # ctx is followed by parameters that are passed by user.
 # For eg - !LFG AOE playername 4
 async def LFG(ctx, gamename, player, numplayers):
+    if ("_" in gamename):
+        await ctx.send(f' Invalid game name: {gamename}. Should not have underscores')
+        return
     # Currently this logic might lead to collisions in IDs but we'll live with
     # it for now as it's incredibly unlikely with expected usage
-    id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
-    await ctx.send(f' Creating request for Game : {gamename}. Looking for {numplayers} players. Group ID - {id}')
+    random_postfix = "".join(random.choices(string.ascii_uppercase + string.digits, k=4))
+    id = "_".join((gamename, random_postfix))
+    await ctx.send(
+        f' Creating request for Game : {gamename}.'
+            + ' Looking for {numplayers} players. Match ID - {id}')
 
-    if (gamename in gamename_to_matches):
-      matches = gamename_to_matches[gamename]
+    if (gamename in gamename_to_match_ids):
+      match_ids_of_game = gamename_to_match_ids[gamename]
     else:
-      matches = {}
-      gamename_to_matches[gamename] = matches
-    matches[id] = Match(gamename, id, player, numplayers)
+      match_ids_of_game = set()
+      gamename_to_match_ids[gamename] = match_ids_of_game
+    match_ids_of_game.add(id)
+
+    match_ids_to_matches[id] = Match(gamename, id, player, int(numplayers))
+
     await ctx.send(f'Active {gamename} games:-')
-    for match_id in matches.keys():
-      await ctx.send(f'{match_id}: {matches[match_id].players} {matches[match_id].numplayers}')
+    for match_id in match_ids_of_game:
+        match_of_game = match_ids_to_matches[match_id]
+        await ctx.send(f'{match_id}: {match_of_game.players} {match_of_game.numplayers}')
 
 @client.command()
 async def Join(ctx, id, player):
-    print("Adding player {player} to match ({id})")
-    await ctx.send(f'Player <member-name> added to GroupID {id} , Looking for <n-1> more player(s)')
+    gamename = id.split("_", 1)[0]
+    print(f'Adding player {player} to match ({id}) of game ({gamename})')
+    if (gamename not in gamename_to_match_ids.keys()):
+        await ctx.send(f' Game \'{gamename}\' not found')
+        return
 
+    match_ids_of_game = gamename_to_match_ids[gamename]
+    if (id not in match_ids_of_game):
+        print(f'Match ID \'{id}\' not found in {match_ids_of_game}')
+        await ctx.send(f' Match ID \'{id}\' not found')
+        return
+
+    match = match_ids_to_matches[id]
+    if (len(match.players) >= match.numplayers):
+        await ctx.send(f' Match ID \'{id}\' already full')
+        return
+
+    match.players.add(player)
+    await ctx.send(f'Player {player} added to Match ID - {id}')
+
+    if (len(match.players) == match.numplayers):
+        await ctx.send(f'Enough players for Match ID - {id}: {match.players}')
+    else:
+        await ctx.send(f'Looking for {match.numplayers - len(match.players)} more player(s)')
 @client.command()
 async def Leave(ctx,id):
     print("Get member id and update to player list for Group ID {id}")
