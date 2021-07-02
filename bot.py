@@ -76,7 +76,7 @@ async def LFG(ctx, gamename, player, numplayers):
     id = "_".join((gamename, random_postfix))
     await ctx.send(
         f' Creating request for Game : {gamename}.'
-            + ' Looking for {numplayers} players. Match ID - {id}')
+            + f' Looking for {numplayers} players. Match ID - {id}')
 
     if (gamename in gamename_to_match_ids):
       match_ids_of_game = gamename_to_match_ids[gamename]
@@ -118,10 +118,26 @@ async def Join(ctx, id, player):
         await ctx.send(f'Enough players for Match ID - {id}: {match.players}')
     else:
         await ctx.send(f'Looking for {match.numplayers - len(match.players)} more player(s)')
+
 @client.command()
-async def Leave(ctx,id):
-    print("Get member id and update to player list for Group ID {id}")
-    await ctx.send(f'Player <member-name> removed from GroupID {id} , Looking for <n-1> more player(s)')
+async def Leave(ctx, id, player):
+    gamename = id.split("_", 1)[0]
+    print(f'Removing player {player} from match ({id}) of game ({gamename})')
+    if (gamename not in gamename_to_match_ids.keys()):
+        await ctx.send(f' Game \'{gamename}\' not found')
+        return
+
+    match_ids_of_game = gamename_to_match_ids[gamename]
+    if (id not in match_ids_of_game):
+        print(f'Match ID \'{id}\' not found in {match_ids_of_game}')
+        await ctx.send(f' Match ID \'{id}\' not found')
+        return
+
+    match = match_ids_to_matches[id]
+
+    match.players.remove(player)
+    await ctx.send(f'Player {player} removed from Match ID - {id}')
+    await ctx.send(f'Looking for {match.numplayers - len(match.players)} more player(s)')
 
 print(f'Using auth token:"{auth_token}" to connect...')
 client.run(auth_token)
