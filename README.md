@@ -2,16 +2,17 @@
 
 Project - game-matchmaker 
 
-Bot Behaviours - 
-
-    core functions -
-        1) On-message(user input):  !LFG <game-name> <no.of player> (additional options can be included such as rank,role)
-        2) post LFG request with unique id on channel, maintains player queue 
-        3) On-message(user-input) - !Join <LFG-request-id> 
-        5) On-message(user-input) - !Leave <LFG-request-id>
-        6) Updates player queue on Join/Leave
+Bot commands - 
+On-message(user input): Commands are used by messaging using the format !<command-name> in a channel where the bot is running
+    core commands -
+        1) !LFG <game-name> <max no.of players> (additional options may be included later such as rank filters, role)
+            Creates a unique game id which other players can join (see Join command) till the max number of players is reached
+        2) !Join <match-id> <player-name>
+            Adds the given player name to the given match (if not full) 
+        5) !Leave <match-id> <player-name>
+            Removes the given player name from the given match
 
     info functions
-        1) List all available command options
-        2) detailed help for each command
+        1) List all available command options (to be implemented)
+        2) Detailed help for each command (to be implemented)
 
