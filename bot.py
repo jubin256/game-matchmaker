@@ -3,6 +3,7 @@ import discord
 from discord.ext import commands
 
 import random
+import re
 import string
 import sys
 import os
@@ -76,7 +77,8 @@ async def LFG(ctx, gamename, player, numplayers):
     id = "_".join((gamename, random_postfix))
     await ctx.send(
         f' Creating request for Game : {gamename}.'
-            + f' Looking for {numplayers} players. Match ID - {id}')
+        f' Looking for {numplayers} players. Match ID - {id}'
+        f' Thumbs up to this to join match - \"{id}\"')
 
     if (gamename in gamename_to_match_ids):
       match_ids_of_game = gamename_to_match_ids[gamename]
@@ -87,6 +89,7 @@ async def LFG(ctx, gamename, player, numplayers):
 
     match_ids_to_matches[id] = Match(gamename, id, player, int(numplayers))
 
+    await ctx.send(f' Thumbs up to this to join match - \"{id}\"')
     await ctx.send(f'Active {gamename} games:-')
     for match_id in match_ids_of_game:
         match_of_game = match_ids_to_matches[match_id]
@@ -94,6 +97,21 @@ async def LFG(ctx, gamename, player, numplayers):
 
 @client.command()
 async def Join(ctx, id, player):
+    await joinMatch(ctx, id, player)
+
+@client.event
+async def on_reaction_add(reaction, user):
+    print('reaction triggered')
+    message = reaction.message
+    content = message.content
+    if reaction.emoji == "👍" and "Thumbs up to this to join match" in content:
+        matching = re.match(r'Thumbs up to this to join match - \"(.*)\"', content)
+        match_id = matching.group(1)
+        ctx = await client.get_context(message)
+        await ctx.send(f'Wanna join {match_id}')
+        await joinMatch(ctx, match_id, user.name)
+
+async def joinMatch(ctx, id, player):
     gamename = id.split("_", 1)[0]
     print(f'Adding player {player} to match ({id}) of game ({gamename})')
     if (gamename not in gamename_to_match_ids.keys()):
@@ -137,7 +155,7 @@ async def Leave(ctx, id, player):
 
     match.players.remove(player)
     await ctx.send(f'Player {player} removed from Match ID - {id}')
-    await ctx.send(f'Looking for {match.numplayers - len(match.players)} more player(s)')
+    await ctx.send(f'Looking for {match.numplayers - len(match.players)} player(s)')
 
 print(f'Using auth token:"{auth_token}" to connect...')
 client.run(auth_token)
