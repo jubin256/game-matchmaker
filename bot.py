@@ -16,8 +16,10 @@ if __name__ == "__main__":
         print("Usage: " + os.path.basename(__file__) + " <Auth Token>")
         sys.exit(1)
 
+intents = discord.Intents.default()
+intents.members = True  # Needed for on_reaction_remove
 # Prefix for command that are given to your discord bot
-client = commands.Bot(command_prefix='!')
+client = commands.Bot(command_prefix='!', intents=intents)
 print("Assigning initial variables...")
 gamename_to_match_ids = {}
 match_ids_to_matches = {}
@@ -89,22 +91,23 @@ async def LFG(ctx, gamename, player, numplayers):
     # it for now as it's incredibly unlikely with expected usage
     random_postfix = "".join(
         random.choices(string.ascii_uppercase + string.digits, k=4))
-    id = "_".join((gamename, random_postfix))
+    match_id = "_".join((gamename, random_postfix))
     await ctx.send(
         f' Creating request for Game : {gamename}.'
-        f' Looking for {numplayers} players. Match ID - {id}'
-        f' Thumbs up to this to join match - \"{id}\"')
+        f' Looking for {numplayers} players. Match ID - {match_id}'
+        f' Thumbs up to this to join match - \"{match_id}\"')
 
     if gamename in gamename_to_match_ids:
         match_ids_of_game = gamename_to_match_ids[gamename]
     else:
         match_ids_of_game = set()
         gamename_to_match_ids[gamename] = match_ids_of_game
-    match_ids_of_game.add(id)
+    match_ids_of_game.add(match_id)
 
-    match_ids_to_matches[id] = Match(gamename, id, player, int(numplayers))
+    match_ids_to_matches[match_id] = \
+        Match(gamename, match_id, player, int(numplayers))
 
-    await ctx.send(f' Thumbs up to this to join match - \"{id}\"')
+    await ctx.send(f' Thumbs up to this to join match - \"{match_id}\"')
     await ctx.send(f'Active {gamename} games:-')
     for match_id in match_ids_of_game:
         match_of_game = match_ids_to_matches[match_id]
@@ -113,15 +116,19 @@ async def LFG(ctx, gamename, player, numplayers):
 
 
 @client.command()
-async def Join(ctx, id, player):
+async def Join(ctx, match_id, player):
     """Add player to matchmaking queue using the unique match_id."""
-    await join_match(ctx, id, player)
+    await join_match(ctx, match_id, player)
 
 
 @client.event
 async def on_reaction_add(reaction, user):
-    """Add user to matchmaking queue using the unique match_id."""
-    print('reaction triggered')
+    """Add user to matchmaking queue based on reaction.
+
+    Use the unique match_id present in the message of the appropriate format
+    and only if the reaction added is a thumbs up.
+    """
+    print('reaction added')
     message = reaction.message
     content = message.content
     if reaction.emoji == "👍" and "Thumbs up to this to join match" in content:
@@ -129,57 +136,83 @@ async def on_reaction_add(reaction, user):
             r'Thumbs up to this to join match - \"(.*)\"', content)
         match_id = matching.group(1)
         ctx = await client.get_context(message)
-        await join_match(ctx, match_id, user.name)
+        await join_match(ctx, match_id, user.mention)
 
 
-async def join_match(ctx, id, player):
+async def join_match(ctx, match_id, new_player):
     """Add player to matchmaking queue using the unique match_id."""
-    gamename = id.split("_", 1)[0]
-    print(f'Adding player {player} to match ({id}) of game ({gamename})')
+    gamename = match_id.split("_", 1)[0]
+    print(
+        f'Adding player {new_player} to match({match_id}) of game({gamename})')
     if gamename not in gamename_to_match_ids.keys():
         await ctx.send(f' Game \'{gamename}\' not found')
         return
 
     match_ids_of_game = gamename_to_match_ids[gamename]
-    if id not in match_ids_of_game:
-        print(f'Match ID \'{id}\' not found in {match_ids_of_game}')
-        await ctx.send(f' Match ID \'{id}\' not found')
+    if match_id not in match_ids_of_game:
+        print(f'Match ID \'{match_id}\' not found in {match_ids_of_game}')
+        await ctx.send(f' Match ID \'{match_id}\' not found')
         return
 
-    match = match_ids_to_matches[id]
+    match = match_ids_to_matches[match_id]
     if len(match.players) >= match.numplayers:
-        await ctx.send(f' Match ID \'{id}\' already full')
+        await ctx.send(f' Match ID \'{match_id}\' already full')
         return
 
-    match.players.add(player)
-    await ctx.send(f'Player {player} added to Match ID - {id}')
+    match.players.add(new_player)
+    await ctx.send(f'Player {new_player} added to Match ID - {match_id}')
 
     if len(match.players) == match.numplayers:
-        await ctx.send(f'Enough players for Match ID - {id}: {match.players}')
+        await ctx.send(
+            f'Enough players for Match ID - {match_id}: {match.players}')
     else:
         num_players_left = match.numplayers - len(match.players)
         await ctx.send(f'Looking for {num_players_left} more player(s)')
 
 
 @client.command()
-async def Leave(ctx, id, player):
+async def Leave(ctx, match_id, player):
     """Remove player from matchmaking queue using the unique match_id."""
-    gamename = id.split("_", 1)[0]
-    print(f'Removing player {player} from match ({id}) of game ({gamename})')
+    await leave_match(ctx, match_id, player)
+
+
+@client.event
+async def on_reaction_remove(reaction, user):
+    """Remove user from matchmaking queue based on reaction.
+
+    Use the unique match_id present in the message of the appropriate format
+    and only if the reaction being removed is a thumbs up.
+    """
+    print('reaction removed')
+    message = reaction.message
+    content = message.content
+    if reaction.emoji == "👍" and "Thumbs up to this to join match" in content:
+        matching = re.match(
+            r'Thumbs up to this to join match - \"(.*)\"', content)
+        match_id = matching.group(1)
+        ctx = await client.get_context(message)
+        await leave_match(ctx, match_id, user.mention)
+
+
+async def leave_match(ctx, match_id, player):
+    """Remove player from matchmaking queue using the unique match_id."""
+    gamename = match_id.split("_", 1)[0]
+    print(
+        f'Removing player {player} from match({match_id}) of game({gamename})')
     if gamename not in gamename_to_match_ids.keys():
         await ctx.send(f' Game \'{gamename}\' not found')
         return
 
     match_ids_of_game = gamename_to_match_ids[gamename]
-    if id not in match_ids_of_game:
-        print(f'Match ID \'{id}\' not found in {match_ids_of_game}')
-        await ctx.send(f' Match ID \'{id}\' not found')
+    if match_id not in match_ids_of_game:
+        print(f'Match ID \'{match_id}\' not found in {match_ids_of_game}')
+        await ctx.send(f' Match ID \'{match_id}\' not found')
         return
 
-    match = match_ids_to_matches[id]
+    match = match_ids_to_matches[match_id]
 
     match.players.remove(player)
-    await ctx.send(f'Player {player} removed from Match ID - {id}')
+    await ctx.send(f'Player {player} removed from Match ID - {match_id}')
     num_players_left = match.numplayers - len(match.players)
     await ctx.send(f'Looking for {num_players_left} player(s)')
 
